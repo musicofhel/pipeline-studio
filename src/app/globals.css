@@ -124,3 +124,59 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Connection drag feedback — compatible target handles glow green, incompatible dim red */
+.connecting-valid {
+  box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.7), 0 0 12px 4px rgba(34, 197, 94, 0.3) !important;
+  border-color: #22c55e !important;
+  animation: handle-pulse 1s ease-in-out infinite !important;
+}
+
+.connecting-invalid {
+  opacity: 0.3 !important;
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 4px 1px rgba(239, 68, 68, 0.3) !important;
+}
+
+@keyframes handle-pulse {
+  0%, 100% {
+    box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.7), 0 0 12px 4px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 8px 3px rgba(34, 197, 94, 0.9), 0 0 16px 6px rgba(34, 197, 94, 0.5);
+  }
+}
+
+/* Animated edge: traveling dot along the edge path */
+@keyframes edge-flow-dot {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+/* Animated dashed connection line — marching ants effect */
+.animated-connection-line {
+  animation: connection-dash-march 0.5s linear infinite;
+}
+
+@keyframes connection-dash-march {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+/* Edge tooltip badge transitions */
+.edge-tooltip-badge {
+  z-index: 1000;
+}

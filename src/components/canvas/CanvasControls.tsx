@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Play, Square, RotateCcw, Layout, Download, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -82,6 +82,17 @@ export function CanvasControls() {
   }, [loadPipeline])
 
   const isRunning = executionStatus === 'running'
+
+  // Listen for keyboard shortcut (Space) to trigger run
+  useEffect(() => {
+    const onPipelineRun = () => {
+      if (executionStatus !== 'running') {
+        handleRun()
+      }
+    }
+    window.addEventListener('pipeline:run', onPipelineRun)
+    return () => window.removeEventListener('pipeline:run', onPipelineRun)
+  }, [executionStatus, handleRun])
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900/90 p-2 shadow-lg backdrop-blur">
@@ -191,12 +202,15 @@ async function simulateExecution(runId: string) {
     const latency = 50 + Math.random() * 200
     await new Promise((r) => setTimeout(r, latency))
 
-    // Set all nodes in level to "success"
+    // Set all nodes in level to "success" and animate outgoing edges
     for (const nodeId of level) {
       usePipelineStore.getState().setNodeStatus(nodeId, 'success', {
         latencyMs: latency,
         cost: Math.random() * 0.002,
       })
+
+      // Animate outgoing edges from this node
+      animateOutgoingEdges(nodeId, edges)
     }
     totalLatency += latency
   }
@@ -207,4 +221,26 @@ async function simulateExecution(runId: string) {
     route: 'rag_knowledge_base',
     response: 'This is a simulated response. Connect to the backend to see real results.',
   })
+}
+
+/**
+ * Briefly sets `data.animated = true` on all outgoing edges from a node,
+ * then resets to false after 500ms. Creates the visual "data flowing" effect.
+ */
+function animateOutgoingEdges(
+  nodeId: string,
+  edgeSnapshot: { id: string; source: string }[]
+) {
+  const outgoing = edgeSnapshot.filter((e) => e.source === nodeId)
+  if (outgoing.length === 0) return
+
+  const outgoingIds = outgoing.map((e) => e.id)
+
+  // Set animated = true
+  usePipelineStore.getState().setEdgesAnimated(outgoingIds, true)
+
+  // Reset after 500ms (matches the CSS animation duration of 600ms, slightly shorter to avoid overlap)
+  setTimeout(() => {
+    usePipelineStore.getState().setEdgesAnimated(outgoingIds, false)
+  }, 500)
 }

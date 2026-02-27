@@ -106,7 +106,7 @@ export class PipelineExecutor {
       await this.sleep(Math.min(latency, 500))
       if (this.abortController?.signal.aborted) return
 
-      // Complete nodes
+      // Complete nodes and animate outgoing edges
       for (const nodeId of level) {
         const node = nodes.find((n) => n.id === nodeId)
         const def = node?.type ? NODE_REGISTRY[node.type] : null
@@ -116,6 +116,17 @@ export class PipelineExecutor {
           latencyMs: nodeLatency,
           cost: def?.estimatedCostPerCall ?? 0,
         })
+
+        // Animate outgoing edges from this node
+        const outgoingIds = edges
+          .filter((e) => e.source === nodeId)
+          .map((e) => e.id)
+        if (outgoingIds.length > 0) {
+          usePipelineStore.getState().setEdgesAnimated(outgoingIds, true)
+          setTimeout(() => {
+            usePipelineStore.getState().setEdgesAnimated(outgoingIds, false)
+          }, 500)
+        }
       }
 
       totalLatency += latency

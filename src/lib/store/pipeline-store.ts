@@ -60,6 +60,9 @@ interface PipelineState {
   completeExecution: (runId: string, result: { totalLatencyMs: number; totalCost: number; route: string; response: string }) => void
   resetExecution: () => void
 
+  // Edge animation
+  setEdgesAnimated: (edgeIds: string[], animated: boolean) => void
+
   // Persistence
   loadPipeline: (data: { nodes: PipelineNode[]; edges: PipelineEdge[] }) => void
   exportPipeline: () => { nodes: PipelineNode[]; edges: PipelineEdge[] }
@@ -182,10 +185,27 @@ export const usePipelineStore = create<PipelineState>()(
           ...n,
           data: { ...n.data, execution: undefined },
         }))
+        // Also clear animated state on all edges
+        const resetEdges = get().edges.map((e) => ({
+          ...e,
+          data: { ...e.data, animated: false },
+        }))
         set({
           nodes: resetNodes,
+          edges: resetEdges,
           executionStatus: 'idle',
           currentRunId: null,
+        })
+      },
+
+      setEdgesAnimated: (edgeIds, animated) => {
+        const edgeIdSet = new Set(edgeIds)
+        set({
+          edges: get().edges.map((e) =>
+            edgeIdSet.has(e.id)
+              ? { ...e, data: { ...e.data, animated } }
+              : e
+          ),
         })
       },
 

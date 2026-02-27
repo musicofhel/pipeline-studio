@@ -11,6 +11,7 @@ import { usePipelineStore, type PipelineNode } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
 import { loadPipelineFromStorage, savePipelineToStorage } from '@/lib/engine/serializer'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
+import { getLayoutedElements } from '@/lib/layout/elk-layout'
 import { PanelBottom, PanelBottomClose, PanelLeft, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -66,13 +67,69 @@ export default function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Skip shortcuts when focus is in an input, textarea, or contenteditable
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      // Ctrl/Cmd+Z — Undo
       if (e.key === 'z' && (e.ctrlKey || e.metaKey) && !e.shiftKey) {
         e.preventDefault()
         usePipelineStore.temporal.getState().undo()
+        return
       }
+
+      // Ctrl/Cmd+Shift+Z — Redo
       if (e.key === 'z' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
         e.preventDefault()
         usePipelineStore.temporal.getState().redo()
+        return
+      }
+
+      // Don't trigger single-key shortcuts when modifier keys are held
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      // Space — Run pipeline
+      if (e.key === ' ') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('pipeline:run'))
+        return
+      }
+
+      // Escape — Deselect node and close config panel
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        usePipelineStore.getState().setSelectedNodeId(null)
+        useUIStore.getState().setConfigPanelOpen(false)
+        return
+      }
+
+      // d — Duplicate selected node
+      if (e.key === 'd') {
+        const selectedId = usePipelineStore.getState().selectedNodeId
+        if (selectedId) {
+          e.preventDefault()
+          usePipelineStore.getState().duplicateNode(selectedId)
+        }
+        return
+      }
+
+      // l — Auto-layout (ELK)
+      if (e.key === 'l') {
+        e.preventDefault()
+        const state = usePipelineStore.getState()
+        getLayoutedElements(state.nodes, state.edges).then(({ nodes: ln, edges: le }) => {
+          usePipelineStore.getState().setNodes(ln)
+          usePipelineStore.getState().setEdges(le)
+        }).catch((err) => {
+          console.error('Auto-layout failed:', err)
+        })
+        return
       }
     }
     window.addEventListener('keydown', handler)

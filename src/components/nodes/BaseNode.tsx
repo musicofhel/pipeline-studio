@@ -1,7 +1,7 @@
 'use client'
 
-import { memo, useCallback } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { memo, useCallback, useMemo } from 'react'
+import { Handle, Position, useConnection, type NodeProps } from '@xyflow/react'
 import {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
   Database, Copy, ArrowUpDown, Minimize2, Route, Sparkles,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
 import { HANDLE_COLORS } from '@/lib/nodes/handle-colors'
-import { HandleDefinition, NodeStatus, PipelineNodeData } from '@/types/nodes'
+import { HandleDefinition, HandleType, NodeStatus, PipelineNodeData } from '@/types/nodes'
 import { usePipelineStore } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
 
@@ -39,11 +39,64 @@ function positionToReactFlow(pos: HandleDefinition['position']): Position {
   }
 }
 
+/**
+ * Determine the CSS class for a handle based on the active connection drag state.
+ * - If no drag is in progress, returns '' (no extra class).
+ * - If the drag source handle type matches this handle's type AND this handle is a
+ *   valid target (opposite direction), returns 'connecting-valid'.
+ * - Otherwise returns 'connecting-invalid'.
+ */
+function getHandleConnectionClass(
+  handle: HandleDefinition,
+  handleDirection: 'input' | 'output',
+  nodeId: string,
+  connectionFromNodeId: string | undefined,
+  connectionFromHandleType: HandleType | null,
+  connectionFromDirection: 'source' | 'target' | undefined,
+  isConnecting: boolean,
+): string {
+  if (!isConnecting || !connectionFromHandleType || !connectionFromDirection) return ''
+  // Don't highlight handles on the source node itself
+  if (nodeId === connectionFromNodeId) return ''
+  // A source handle drag needs a target handle, and vice versa
+  const needsTarget = connectionFromDirection === 'source'
+  if (needsTarget && handleDirection !== 'input') return 'connecting-invalid'
+  if (!needsTarget && handleDirection !== 'output') return 'connecting-invalid'
+  // Type compatibility check
+  if (handle.type === connectionFromHandleType) return 'connecting-valid'
+  return 'connecting-invalid'
+}
+
 function BaseNodeComponent({ id, type, selected }: NodeProps) {
   const nodeType = type as string
   const def = NODE_REGISTRY[nodeType]
   const setSelectedNodeId = usePipelineStore((s) => s.setSelectedNodeId)
   const setConfigPanelOpen = useUIStore((s) => s.setConfigPanelOpen)
+
+  // Detect active connection drag via useConnection hook
+  const connection = useConnection()
+
+  // Derive the HandleType of the source handle being dragged
+  const connectionInfo = useMemo(() => {
+    if (!connection.inProgress || !connection.fromHandle) {
+      return { isConnecting: false, fromHandleType: null as HandleType | null, fromNodeId: undefined as string | undefined, fromDirection: undefined as 'source' | 'target' | undefined }
+    }
+    const fromNodeId = connection.fromNode?.internals?.userNode?.id ?? connection.fromHandle.nodeId
+    const fromNodeType = connection.fromNode?.internals?.userNode?.type as string | undefined
+    const fromHandleId = connection.fromHandle.id
+    const fromDirection = connection.fromHandle.type // 'source' or 'target'
+
+    let fromHandleType: HandleType | null = null
+    if (fromNodeType && fromHandleId) {
+      const fromDef = NODE_REGISTRY[fromNodeType]
+      if (fromDef) {
+        const handles = fromDirection === 'source' ? fromDef.outputs : fromDef.inputs
+        const h = handles.find((h) => h.id === fromHandleId)
+        if (h) fromHandleType = h.type
+      }
+    }
+    return { isConnecting: true, fromHandleType, fromNodeId, fromDirection }
+  }, [connection.inProgress, connection.fromHandle, connection.fromNode])
 
   // Get execution data from the store
   const execution = usePipelineStore((s) => {
@@ -102,78 +155,92 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
       <div className="flex justify-between gap-4 px-3 py-2">
         {/* Left inputs */}
         <div className="flex flex-col gap-1.5">
-          {leftHandles.map((h, i) => (
-            <div key={h.id} className="relative flex items-center gap-1.5">
-              <Handle
-                type="target"
-                position={Position.Left}
-                id={h.id}
-                className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800"
-                style={{
-                  backgroundColor: HANDLE_COLORS[h.type],
-                  top: 'auto',
-                  position: 'relative',
-                  transform: 'none',
-                  left: -12,
-                }}
-              />
-              <span className="text-[10px] text-zinc-400">{h.label}</span>
-            </div>
-          ))}
+          {leftHandles.map((h) => {
+            const connClass = getHandleConnectionClass(h, 'input', id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
+            return (
+              <div key={h.id} className="relative flex items-center gap-1.5">
+                <Handle
+                  type="target"
+                  position={Position.Left}
+                  id={h.id}
+                  className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  style={{
+                    backgroundColor: HANDLE_COLORS[h.type],
+                    top: 'auto',
+                    position: 'relative',
+                    transform: 'none',
+                    left: -12,
+                  }}
+                />
+                <span className="text-[10px] text-zinc-400">{h.label}</span>
+              </div>
+            )
+          })}
         </div>
 
         {/* Right outputs */}
         <div className="flex flex-col items-end gap-1.5">
-          {rightHandles.map((h, i) => (
-            <div key={h.id} className="relative flex items-center gap-1.5">
-              <span className="text-[10px] text-zinc-400">{h.label}</span>
-              <Handle
-                type="source"
-                position={Position.Right}
-                id={h.id}
-                className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800"
-                style={{
-                  backgroundColor: HANDLE_COLORS[h.type],
-                  top: 'auto',
-                  position: 'relative',
-                  transform: 'none',
-                  right: -12,
-                }}
-              />
-            </div>
-          ))}
+          {rightHandles.map((h) => {
+            const connClass = getHandleConnectionClass(h, 'output', id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
+            return (
+              <div key={h.id} className="relative flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-400">{h.label}</span>
+                <Handle
+                  type="source"
+                  position={Position.Right}
+                  id={h.id}
+                  className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  style={{
+                    backgroundColor: HANDLE_COLORS[h.type],
+                    top: 'auto',
+                    position: 'relative',
+                    transform: 'none',
+                    right: -12,
+                  }}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
 
       {/* Top handles */}
-      {topHandles.map((h, i) => (
-        <Handle
-          key={h.id}
-          type={def.inputs.some((inp) => inp.id === h.id) ? 'target' : 'source'}
-          position={Position.Top}
-          id={h.id}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800"
-          style={{
-            backgroundColor: HANDLE_COLORS[h.type],
-            left: `${((i + 1) / (topHandles.length + 1)) * 100}%`,
-          }}
-        />
-      ))}
+      {topHandles.map((h, i) => {
+        const dir = def.inputs.some((inp) => inp.id === h.id) ? 'input' as const : 'output' as const
+        const connClass = getHandleConnectionClass(h, dir, id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
+        return (
+          <Handle
+            key={h.id}
+            type={dir === 'input' ? 'target' : 'source'}
+            position={Position.Top}
+            id={h.id}
+            className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            style={{
+              backgroundColor: HANDLE_COLORS[h.type],
+              left: `${((i + 1) / (topHandles.length + 1)) * 100}%`,
+            }}
+          />
+        )
+      })}
 
       {/* Bottom handles */}
-      {bottomHandles.map((h, i) => (
-        <Handle
-          key={h.id}
-          type={def.inputs.some((inp) => inp.id === h.id) ? 'target' : 'source'}
-          position={Position.Bottom}
-          id={h.id}
-          className="!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800"
-          style={{
-            backgroundColor: HANDLE_COLORS[h.type],
-            left: `${((i + 1) / (bottomHandles.length + 1)) * 100}%`,
-          }}
-        />
-      ))}
+      {bottomHandles.map((h, i) => {
+        const dir = def.inputs.some((inp) => inp.id === h.id) ? 'input' as const : 'output' as const
+        const connClass = getHandleConnectionClass(h, dir, id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
+        return (
+          <Handle
+            key={h.id}
+            type={dir === 'input' ? 'target' : 'source'}
+            position={Position.Bottom}
+            id={h.id}
+            className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            style={{
+              backgroundColor: HANDLE_COLORS[h.type],
+              left: `${((i + 1) / (bottomHandles.length + 1)) * 100}%`,
+            }}
+          />
+        )
+      })}
 
       {/* Footer — execution stats */}
       {(execution?.latencyMs !== undefined || execution?.error || execution?.skipReason) && (

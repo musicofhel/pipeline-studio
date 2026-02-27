@@ -1,13 +1,27 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Play, Square, RotateCcw, Layout, Download, Upload } from 'lucide-react'
+import { Play, Square, RotateCcw, Layout, Download, Upload, Circle, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { usePipelineStore } from '@/lib/store/pipeline-store'
-import { useUIStore } from '@/lib/store/ui-store'
+import { useUIStore, type ExecutionMode } from '@/lib/store/ui-store'
 import { getLayoutedElements } from '@/lib/layout/elk-layout'
 import { exportPipelineToJSON, importPipelineFromJSON } from '@/lib/engine/serializer'
+import { pipelineExecutor } from '@/lib/engine/executor'
+import { useBackendStatus } from '@/lib/hooks/use-backend-status'
 
 export function CanvasControls() {
   const nodes = usePipelineStore((s) => s.nodes)
@@ -15,9 +29,13 @@ export function CanvasControls() {
   const setNodes = usePipelineStore((s) => s.setNodes)
   const setEdges = usePipelineStore((s) => s.setEdges)
   const executionStatus = usePipelineStore((s) => s.executionStatus)
-  const startExecution = usePipelineStore((s) => s.startExecution)
   const resetExecution = usePipelineStore((s) => s.resetExecution)
   const loadPipeline = usePipelineStore((s) => s.loadPipeline)
+
+  const executionMode = useUIStore((s) => s.executionMode)
+  const setExecutionMode = useUIStore((s) => s.setExecutionMode)
+
+  const backendStatus = useBackendStatus()
 
   const [query, setQuery] = useState('What is the remote work policy?')
   const [layouting, setLayouting] = useState(false)
@@ -37,14 +55,22 @@ export function CanvasControls() {
 
   const handleRun = useCallback(() => {
     if (!query.trim()) return
-    const runId = startExecution(query)
-    // MVP: simulated execution replay
-    // Phase 3 will connect to the real backend
-    simulateExecution(runId)
-  }, [query, startExecution])
+
+    // Extract userId and tenantId from the query_input node config if available
+    let userId = ''
+    let tenantId = ''
+    const queryInputNode = nodes.find((n) => n.type === 'query_input')
+    if (queryInputNode?.data?.config) {
+      const config = queryInputNode.data.config as Record<string, unknown>
+      if (typeof config.user_id === 'string') userId = config.user_id
+      if (typeof config.tenant_id === 'string') tenantId = config.tenant_id
+    }
+
+    pipelineExecutor.execute(query, userId, tenantId, executionMode)
+  }, [query, nodes, executionMode])
 
   const handleStop = useCallback(() => {
-    usePipelineStore.getState().setExecutionStatus('aborted')
+    pipelineExecutor.abort()
   }, [])
 
   const handleReset = useCallback(() => {
@@ -81,7 +107,15 @@ export function CanvasControls() {
     input.click()
   }, [loadPipeline])
 
+  const handleModeChange = useCallback(
+    (value: string) => {
+      setExecutionMode(value as ExecutionMode)
+    },
+    [setExecutionMode]
+  )
+
   const isRunning = executionStatus === 'running'
+  const showLiveWarning = executionMode === 'live' && !backendStatus.connected
 
   // Listen for keyboard shortcut (Space) to trigger run
   useEffect(() => {
@@ -123,6 +157,68 @@ export function CanvasControls() {
 
       <div className="mx-1 h-6 w-px bg-zinc-700" />
 
+      {/* Mode selector */}
+      <div className="flex items-center gap-1.5">
+        <Select value={executionMode} onValueChange={handleModeChange}>
+          <SelectTrigger
+            size="sm"
+            className="h-7 w-[82px] border-zinc-700 bg-zinc-800 px-2 text-xs text-zinc-300"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-zinc-700 bg-zinc-800">
+            <SelectItem value="demo" className="text-xs text-zinc-300">
+              Demo
+            </SelectItem>
+            <SelectItem value="live" className="text-xs text-zinc-300">
+              Live
+            </SelectItem>
+          </SelectContent>
+        </Select>
+
+        {showLiveWarning && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <AlertTriangle size={14} className="text-amber-400" />
+            </TooltipTrigger>
+            <TooltipContent
+              side="bottom"
+              className="max-w-[200px] border border-zinc-700 bg-zinc-900 text-zinc-200"
+            >
+              Backend disconnected. Live mode will fail.
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* Backend status indicator */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={backendStatus.refresh}
+            className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-zinc-800"
+          >
+            <Circle
+              size={8}
+              className={
+                backendStatus.connected
+                  ? 'fill-green-500 text-green-500'
+                  : 'fill-red-500 text-red-500'
+              }
+            />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          className="max-w-[280px] border border-zinc-700 bg-zinc-900 text-zinc-200"
+        >
+          <BackendStatusTooltip status={backendStatus} />
+        </TooltipContent>
+      </Tooltip>
+
+      <div className="mx-1 h-6 w-px bg-zinc-700" />
+
       <Button
         size="sm"
         variant="ghost"
@@ -147,100 +243,66 @@ export function CanvasControls() {
 }
 
 /**
- * Simulated execution for MVP — replays a fake trace onto the canvas
- * with staggered animations. Will be replaced by real backend calls in Phase 3.
+ * Tooltip content showing backend version and service statuses.
  */
-async function simulateExecution(runId: string) {
-  const store = usePipelineStore.getState()
-  const { nodes, edges } = store
-
-  // Build adjacency for topological sort
-  const nodeIds = nodes.map((n) => n.id)
-  const edgeList = edges.map((e) => ({ source: e.source, target: e.target }))
-
-  // Simple BFS-based level assignment
-  const inDegree = new Map<string, number>()
-  const adj = new Map<string, string[]>()
-  for (const id of nodeIds) {
-    inDegree.set(id, 0)
-    adj.set(id, [])
+function BackendStatusTooltip({
+  status,
+}: {
+  status: {
+    connected: boolean
+    version: string | null
+    services: Record<string, { status: string; latency_ms?: number }> | null
+    lastChecked: number | null
+    error: string | null
   }
-  for (const e of edgeList) {
-    if (adj.has(e.source) && inDegree.has(e.target)) {
-      adj.get(e.source)!.push(e.target)
-      inDegree.set(e.target, (inDegree.get(e.target) ?? 0) + 1)
-    }
+}) {
+  if (!status.lastChecked) {
+    return <span className="text-xs text-zinc-400">Checking backend...</span>
   }
 
-  const levels: string[][] = []
-  let queue = nodeIds.filter((id) => inDegree.get(id) === 0)
-  while (queue.length > 0) {
-    levels.push([...queue])
-    const next: string[] = []
-    for (const id of queue) {
-      for (const neighbor of adj.get(id) ?? []) {
-        const d = (inDegree.get(neighbor) ?? 1) - 1
-        inDegree.set(neighbor, d)
-        if (d === 0) next.push(neighbor)
-      }
-    }
-    queue = next
+  if (!status.connected) {
+    return (
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-red-400">Backend Disconnected</div>
+        {status.error && (
+          <div className="text-xs text-zinc-400">{status.error}</div>
+        )}
+        <div className="text-xs text-zinc-500">Click to retry</div>
+      </div>
+    )
   }
 
-  // Animate level by level
-  let totalLatency = 0
-  for (const level of levels) {
-    // Check abort
-    if (usePipelineStore.getState().executionStatus !== 'running') return
-
-    // Set all nodes in level to "running"
-    for (const nodeId of level) {
-      usePipelineStore.getState().setNodeStatus(nodeId, 'running')
-    }
-
-    // Simulate stage latency
-    const latency = 50 + Math.random() * 200
-    await new Promise((r) => setTimeout(r, latency))
-
-    // Set all nodes in level to "success" and animate outgoing edges
-    for (const nodeId of level) {
-      usePipelineStore.getState().setNodeStatus(nodeId, 'success', {
-        latencyMs: latency,
-        cost: Math.random() * 0.002,
-      })
-
-      // Animate outgoing edges from this node
-      animateOutgoingEdges(nodeId, edges)
-    }
-    totalLatency += latency
-  }
-
-  usePipelineStore.getState().completeExecution(runId, {
-    totalLatencyMs: totalLatency,
-    totalCost: 0.012,
-    route: 'rag_knowledge_base',
-    response: 'This is a simulated response. Connect to the backend to see real results.',
-  })
-}
-
-/**
- * Briefly sets `data.animated = true` on all outgoing edges from a node,
- * then resets to false after 500ms. Creates the visual "data flowing" effect.
- */
-function animateOutgoingEdges(
-  nodeId: string,
-  edgeSnapshot: { id: string; source: string }[]
-) {
-  const outgoing = edgeSnapshot.filter((e) => e.source === nodeId)
-  if (outgoing.length === 0) return
-
-  const outgoingIds = outgoing.map((e) => e.id)
-
-  // Set animated = true
-  usePipelineStore.getState().setEdgesAnimated(outgoingIds, true)
-
-  // Reset after 500ms (matches the CSS animation duration of 600ms, slightly shorter to avoid overlap)
-  setTimeout(() => {
-    usePipelineStore.getState().setEdgesAnimated(outgoingIds, false)
-  }, 500)
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-xs font-medium text-green-400">Connected</span>
+        {status.version && (
+          <span className="text-xs text-zinc-400">v{status.version}</span>
+        )}
+      </div>
+      {status.services && Object.keys(status.services).length > 0 && (
+        <div className="space-y-0.5">
+          {Object.entries(status.services).map(([name, svc]) => (
+            <div key={name} className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-zinc-300">{name}</span>
+              <span className="flex items-center gap-1">
+                <Circle
+                  size={6}
+                  className={
+                    svc.status === 'healthy' || svc.status === 'ok'
+                      ? 'fill-green-500 text-green-500'
+                      : 'fill-red-500 text-red-500'
+                  }
+                />
+                {svc.latency_ms != null && (
+                  <span className="text-zinc-500">{Math.round(svc.latency_ms)}ms</span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="text-xs text-zinc-500">Click to refresh</div>
+    </div>
+  )
 }

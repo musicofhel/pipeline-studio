@@ -1,0 +1,70 @@
+{
+  "nodes": [
+    { "id": "query-input", "type": "query_input", "position": { "x": 0, "y": 300 }, "data": { "config": { "user_id": "test-user", "tenant_id": "default", "query": "" } } },
+    { "id": "injection-filter", "type": "injection_filter", "position": { "x": 300, "y": 100 }, "data": { "config": {} } },
+    { "id": "pii-detector", "type": "pii_detector", "position": { "x": 300, "y": 300 }, "data": { "config": {} } },
+    { "id": "lakera-guard", "type": "lakera_guard", "position": { "x": 300, "y": 500 }, "data": { "config": {} } },
+    { "id": "safety-gate", "type": "safety_gate", "position": { "x": 600, "y": 300 }, "data": { "config": {} } },
+    { "id": "semantic-router", "type": "semantic_router", "position": { "x": 900, "y": 300 }, "data": { "config": {} } },
+    { "id": "query-expander", "type": "query_expander", "position": { "x": 1200, "y": 200 }, "data": { "config": {} } },
+    { "id": "qdrant-retrieval", "type": "qdrant_retrieval", "position": { "x": 1500, "y": 200 }, "data": { "config": {} } },
+    { "id": "deduplication", "type": "deduplication", "position": { "x": 1800, "y": 200 }, "data": { "config": {} } },
+    { "id": "cohere-rerank", "type": "cohere_rerank", "position": { "x": 2100, "y": 200 }, "data": { "config": {} } },
+    { "id": "bm25-compression", "type": "bm25_compression", "position": { "x": 2400, "y": 200 }, "data": { "config": {} } },
+    { "id": "model-router", "type": "model_router", "position": { "x": 2700, "y": 150 }, "data": { "config": {} } },
+    { "id": "llm-generation", "type": "llm_generation", "position": { "x": 3000, "y": 250 }, "data": { "config": {} } },
+    { "id": "hhem-checker", "type": "hhem_checker", "position": { "x": 3300, "y": 250 }, "data": { "config": {} } },
+    { "id": "output-schema", "type": "output_schema", "position": { "x": 3600, "y": 200 }, "data": { "config": {} } },
+    { "id": "langfuse-tracing", "type": "langfuse_tracing", "position": { "x": 3900, "y": 150 }, "data": { "config": {} } },
+    { "id": "response-output", "type": "response_output", "position": { "x": 3900, "y": 350 }, "data": { "config": {} } }
+  ],
+  "edges": [
+    { "id": "e-qi-if", "source": "query-input", "sourceHandle": "query", "target": "injection-filter", "targetHandle": "query_in" },
+    { "id": "e-qi-pii", "source": "query-input", "sourceHandle": "query", "target": "pii-detector", "targetHandle": "query_in" },
+    { "id": "e-qi-lakera", "source": "query-input", "sourceHandle": "query", "target": "lakera-guard", "targetHandle": "query_in" },
+
+    { "id": "e-if-gate", "source": "injection-filter", "sourceHandle": "safety", "target": "safety-gate", "targetHandle": "injection_result" },
+    { "id": "e-pii-gate", "source": "pii-detector", "sourceHandle": "safety", "target": "safety-gate", "targetHandle": "pii_result" },
+    { "id": "e-lakera-gate", "source": "lakera-guard", "sourceHandle": "safety", "target": "safety-gate", "targetHandle": "lakera_result" },
+
+    { "id": "e-qi-gate-query", "source": "query-input", "sourceHandle": "query", "target": "safety-gate", "targetHandle": "query_in", "type": "queryBus", "data": {} },
+
+    { "id": "e-gate-router", "source": "safety-gate", "sourceHandle": "query_out", "target": "semantic-router", "targetHandle": "query_in" },
+
+    { "id": "e-router-expander", "source": "semantic-router", "sourceHandle": "query_out", "target": "query-expander", "targetHandle": "query_in", "data": { "condition": { "route": "rag_knowledge_base" } } },
+    { "id": "e-router-expander-route", "source": "semantic-router", "sourceHandle": "route", "target": "query-expander", "targetHandle": "route" },
+
+    { "id": "e-expander-qdrant", "source": "query-expander", "sourceHandle": "queries", "target": "qdrant-retrieval", "targetHandle": "queries" },
+    { "id": "e-qdrant-dedup", "source": "qdrant-retrieval", "sourceHandle": "documents", "target": "deduplication", "targetHandle": "documents_in" },
+    { "id": "e-dedup-rerank", "source": "deduplication", "sourceHandle": "documents_out", "target": "cohere-rerank", "targetHandle": "documents_in" },
+
+    { "id": "e-qi-rerank-query", "source": "query-input", "sourceHandle": "query", "target": "cohere-rerank", "targetHandle": "query", "type": "queryBus", "data": {} },
+
+    { "id": "e-rerank-bm25", "source": "cohere-rerank", "sourceHandle": "documents_out", "target": "bm25-compression", "targetHandle": "documents_in" },
+
+    { "id": "e-qi-bm25-query", "source": "query-input", "sourceHandle": "query", "target": "bm25-compression", "targetHandle": "query", "type": "queryBus", "data": {} },
+
+    { "id": "e-bm25-model-router", "source": "bm25-compression", "sourceHandle": "context", "target": "model-router", "targetHandle": "context" },
+
+    { "id": "e-qi-model-router-query", "source": "query-input", "sourceHandle": "query", "target": "model-router", "targetHandle": "query", "type": "queryBus", "data": {} },
+    { "id": "e-router-model-router-route", "source": "semantic-router", "sourceHandle": "route", "target": "model-router", "targetHandle": "route" },
+
+    { "id": "e-model-router-llm", "source": "model-router", "sourceHandle": "config", "target": "llm-generation", "targetHandle": "model_config" },
+
+    { "id": "e-bm25-llm-context", "source": "bm25-compression", "sourceHandle": "context", "target": "llm-generation", "targetHandle": "context" },
+    { "id": "e-qi-llm-query", "source": "query-input", "sourceHandle": "query", "target": "llm-generation", "targetHandle": "query", "type": "queryBus", "data": {} },
+
+    { "id": "e-llm-hhem", "source": "llm-generation", "sourceHandle": "response", "target": "hhem-checker", "targetHandle": "response" },
+    { "id": "e-bm25-hhem-context", "source": "bm25-compression", "sourceHandle": "context", "target": "hhem-checker", "targetHandle": "context" },
+
+    { "id": "e-hhem-schema", "source": "hhem-checker", "sourceHandle": "response_out", "target": "output-schema", "targetHandle": "response" },
+    { "id": "e-router-schema-route", "source": "semantic-router", "sourceHandle": "route", "target": "output-schema", "targetHandle": "route" },
+
+    { "id": "e-schema-langfuse", "source": "output-schema", "sourceHandle": "response_out", "target": "langfuse-tracing", "targetHandle": "response" },
+    { "id": "e-hhem-langfuse-quality", "source": "hhem-checker", "sourceHandle": "quality", "target": "langfuse-tracing", "targetHandle": "quality" },
+
+    { "id": "e-schema-response", "source": "output-schema", "sourceHandle": "response_out", "target": "response-output", "targetHandle": "response" },
+    { "id": "e-hhem-response-quality", "source": "hhem-checker", "sourceHandle": "quality", "target": "response-output", "targetHandle": "quality" },
+    { "id": "e-langfuse-response-trace", "source": "langfuse-tracing", "sourceHandle": "trace", "target": "response-output", "targetHandle": "trace" }
+  ]
+}

@@ -1,36 +1,116 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pipeline Studio
 
-## Getting Started
+A visual node editor for building and testing RAG pipelines, designed as the frontend for [enterprise-pipeline](https://github.com/musicofhel/enterprise-pipeline).
 
-First, run the development server:
+<!-- ![Pipeline Studio Screenshot](docs/screenshot.png) -->
+
+## Features
+
+- **Visual node editor** -- drag-and-drop pipeline construction with React Flow v12
+- **18 node types** spanning 10 categories: input, safety, routing, expansion, retrieval, compression, generation, quality, observability, output
+- **Three execution modes** -- mock (local simulation), backend (live API), and streaming (SSE)
+- **Preset management** -- save, load, import/export pipeline configurations as JSON
+- **Batch testing** -- run multiple queries against a pipeline and compare results
+- **Auto-layout** -- ELK.js-powered graph layout running in a Web Worker (non-blocking)
+- **Execution overlay** -- real-time node status, timing, and data flow visualization
+- **Trace timeline** -- step-by-step execution trace inspection
+- **Health dashboard** -- live backend health and Prometheus metrics display
+- **Node data inspector** -- inspect input/output data at each pipeline stage
+- **Comparison panel** -- side-by-side pipeline output comparison
+- **Keyboard shortcuts** -- full keyboard navigation and editing support
+- **Dark mode** -- system-aware theme switching via next-themes
+
+## Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.local.example` to `.env.local` and configure:
 
-## Learn More
+```
+PIPELINE_API_URL=http://localhost:8000
+PIPELINE_API_KEY=your-api-key-here
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Docker
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Build and run with Docker Compose
+docker compose up
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Or build manually
+docker build -t pipeline-studio .
+docker run -p 3000:3000 -e PIPELINE_API_URL=http://host.docker.internal:8000 pipeline-studio
+```
 
-## Deploy on Vercel
+The default `PIPELINE_API_URL` points to `host.docker.internal:8000`, which reaches the enterprise-pipeline backend running on the host machine.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, standalone output) |
+| Canvas | React Flow v12 (`@xyflow/react`) |
+| State | Zustand 5 with zundo (undo/redo) |
+| Layout | ELK.js via Web Worker |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| Charts | Recharts 3 |
+
+### Project Structure
+
+```
+src/
+  app/              # Next.js App Router pages and API routes
+  components/
+    canvas/         # PipelineCanvas, AnimatedEdge, ExecutionOverlay, controls
+    nodes/          # BaseNode, NodeMetricsBadge
+    panels/         # ConfigPanel, ExecutionPanel, BatchTestPanel, PresetsManager, ...
+    sidebar/        # NodePalette (drag source)
+    ui/             # shadcn/ui primitives
+  lib/
+    api/            # Pipeline API client
+    engine/         # Executor, serializer, validator, trace mapper, route paths
+    hooks/          # Backend status, metrics polling
+    layout/         # ELK layout engine + Web Worker
+    nodes/          # Node registry, handle colors, type map
+    store/          # Zustand stores (pipeline, presets, metrics, UI)
+  types/            # TypeScript type definitions
+```
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+Z` | Undo |
+| `Ctrl+Shift+Z` | Redo |
+| `Ctrl+S` | Save pipeline |
+| `Ctrl+E` | Execute pipeline |
+| `Ctrl+L` | Auto-layout |
+| `Delete` / `Backspace` | Delete selected nodes/edges |
+| `Ctrl+A` | Select all |
+| `Ctrl+D` | Duplicate selected |
+| `Escape` | Deselect all / close panels |
+
+## Backend Connection
+
+Pipeline Studio connects to the [enterprise-pipeline](https://github.com/musicofhel/enterprise-pipeline) FastAPI backend for:
+
+- **Pipeline execution** -- sends serialized pipeline configs and receives stage-by-stage results
+- **Streaming** -- SSE endpoint for real-time execution progress
+- **Health monitoring** -- polls `/health` and `/metrics` endpoints
+- **Query processing** -- full RAG pipeline execution with safety, retrieval, generation, and quality checks
+
+The app works fully in mock mode without a backend connection, simulating execution locally with realistic timing and data.
+
+## License
+
+MIT

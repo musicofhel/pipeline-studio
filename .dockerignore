@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+.env*
+!.env.local.example
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+.claude
+.vscode
+*.md
+!public/**

@@ -9,16 +9,19 @@ import { ConfigPanel } from '@/components/panels/ConfigPanel'
 import { ExecutionPanel } from '@/components/panels/ExecutionPanel'
 import { ComparisonPanel } from '@/components/panels/ComparisonPanel'
 import { BatchTestPanel } from '@/components/panels/BatchTestPanel'
+import { KeyboardShortcutsHelp } from '@/components/panels/KeyboardShortcutsHelp'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { usePipelineStore, type PipelineNode } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
 import { loadPipelineFromStorage, savePipelineToStorage } from '@/lib/engine/serializer'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
 import { getLayoutedElements } from '@/lib/layout/elk-layout'
-import { PanelBottom, PanelBottomClose, PanelLeft, PanelLeftClose } from 'lucide-react'
+import { Keyboard, PanelBottom, PanelBottomClose, PanelLeft, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false)
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
   const loadPipeline = usePipelineStore((s) => s.loadPipeline)
   const nodes = usePipelineStore((s) => s.nodes)
   const edges = usePipelineStore((s) => s.edges)
@@ -135,6 +138,13 @@ export default function Home() {
         })
         return
       }
+
+      // ? — Show keyboard shortcuts help
+      if (e.key === '?') {
+        e.preventDefault()
+        setShortcutsHelpOpen(true)
+        return
+      }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
@@ -149,65 +159,84 @@ export default function Home() {
   }
 
   return (
-    <ReactFlowProvider>
-      <div className="flex h-screen flex-col bg-zinc-950">
-        <div className="flex flex-1 overflow-hidden">
-          {sidebarOpen && <NodePalette />}
+    <ErrorBoundary>
+      <ReactFlowProvider>
+        <div className="flex h-screen flex-col bg-zinc-950">
+          <div className="flex flex-1 overflow-hidden">
+            {sidebarOpen && <NodePalette />}
 
-          <div className="relative flex flex-1 flex-col">
-            <div className="absolute left-2 top-2 z-10 flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={toggleSidebar}
-                className="h-8 w-8 p-0 text-zinc-400 bg-zinc-900/90 border border-zinc-700"
-              >
-                {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
-              </Button>
-            </div>
-
-            <div className="absolute left-1/2 top-2 z-10 -translate-x-1/2">
-              <CanvasControls />
-            </div>
-
-            <div className="absolute bottom-2 left-2 z-10">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={toggleExecutionPanel}
-                className="h-8 gap-1.5 text-xs text-zinc-400 bg-zinc-900/90 border border-zinc-700"
-              >
-                {executionPanelOpen ? <PanelBottomClose size={14} /> : <PanelBottom size={14} />}
-                Execution
-              </Button>
-            </div>
-
-            <div className="flex-1">
-              <PipelineCanvas />
-            </div>
-
-            {executionPanelOpen && (
-              <div className="h-64 border-t border-zinc-700 bg-zinc-900">
-                <ExecutionPanel />
+            <div className="relative flex flex-1 flex-col">
+              <div className="absolute left-2 top-2 z-10 flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={toggleSidebar}
+                  className="h-8 w-8 p-0 text-zinc-400 bg-zinc-900/90 border border-zinc-700"
+                >
+                  {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeft size={16} />}
+                </Button>
               </div>
-            )}
 
-            {comparisonPanelOpen && (
-              <div className="h-64 border-t border-zinc-700 bg-zinc-900">
-                <ComparisonPanel />
+              <div className="absolute left-1/2 top-2 z-10 -translate-x-1/2">
+                <CanvasControls />
               </div>
-            )}
 
-            {batchTestPanelOpen && (
-              <div className="h-72 border-t border-zinc-700 bg-zinc-900">
-                <BatchTestPanel />
+              <div className="absolute bottom-2 left-2 z-10">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={toggleExecutionPanel}
+                  className="h-8 gap-1.5 text-xs text-zinc-400 bg-zinc-900/90 border border-zinc-700"
+                >
+                  {executionPanelOpen ? <PanelBottomClose size={14} /> : <PanelBottom size={14} />}
+                  Execution
+                </Button>
               </div>
-            )}
+
+              <div className="absolute bottom-2 right-2 z-10">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShortcutsHelpOpen(true)}
+                  className="h-8 w-8 p-0 text-zinc-400 bg-zinc-900/90 border border-zinc-700"
+                  title="Keyboard shortcuts (?)"
+                >
+                  <Keyboard size={14} />
+                </Button>
+              </div>
+
+              <div className="flex-1">
+                <PipelineCanvas />
+              </div>
+
+              {executionPanelOpen && (
+                <div className="h-64 border-t border-zinc-700 bg-zinc-900">
+                  <ExecutionPanel />
+                </div>
+              )}
+
+              {comparisonPanelOpen && (
+                <div className="h-64 border-t border-zinc-700 bg-zinc-900">
+                  <ComparisonPanel />
+                </div>
+              )}
+
+              {batchTestPanelOpen && (
+                <div className="h-72 border-t border-zinc-700 bg-zinc-900">
+                  <BatchTestPanel />
+                </div>
+              )}
+            </div>
+
+            <ConfigPanel />
           </div>
-
-          <ConfigPanel />
         </div>
-      </div>
-    </ReactFlowProvider>
+
+        <KeyboardShortcutsHelp
+          open={shortcutsHelpOpen}
+          onOpenChange={setShortcutsHelpOpen}
+        />
+      </ReactFlowProvider>
+    </ErrorBoundary>
   )
 }

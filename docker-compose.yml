@@ -1,0 +1,15 @@
+services:
+  pipeline-studio:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - PIPELINE_API_URL=${PIPELINE_API_URL:-http://host.docker.internal:8000}
+      - PIPELINE_API_KEY=${PIPELINE_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

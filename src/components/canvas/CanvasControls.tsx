@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Play, Square, RotateCcw, Layout, Download, Upload, Circle, AlertTriangle } from 'lucide-react'
+import { Play, Square, RotateCcw, Layout, Download, Upload, Circle, AlertTriangle, Bookmark, GitCompareArrows, FlaskConical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,6 +23,7 @@ import { exportPipelineToJSON, importPipelineFromJSON } from '@/lib/engine/seria
 import { pipelineExecutor } from '@/lib/engine/executor'
 import { useBackendStatus } from '@/lib/hooks/use-backend-status'
 import { HealthDashboard } from '@/components/panels/HealthDashboard'
+import { PresetsManager } from '@/components/panels/PresetsManager'
 
 export function CanvasControls() {
   const nodes = usePipelineStore((s) => s.nodes)
@@ -35,6 +36,8 @@ export function CanvasControls() {
 
   const executionMode = useUIStore((s) => s.executionMode)
   const setExecutionMode = useUIStore((s) => s.setExecutionMode)
+  const comparisonPanelOpen = useUIStore((s) => s.comparisonPanelOpen)
+  const toggleComparisonPanel = useUIStore((s) => s.toggleComparisonPanel)
 
   const backendStatus = useBackendStatus()
 
@@ -242,6 +245,37 @@ export function CanvasControls() {
       <Button size="sm" variant="ghost" onClick={handleImport} className="h-8 text-zinc-400">
         <Upload size={14} />
       </Button>
+
+      <div className="mx-1 h-6 w-px bg-zinc-700" />
+
+      <PresetsManager>
+        <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-zinc-400">
+          <Bookmark size={14} />
+          Presets
+        </Button>
+      </PresetsManager>
+
+      <BatchButton />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={toggleComparisonPanel}
+            className={`h-8 gap-1.5 ${comparisonPanelOpen ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-400'}`}
+          >
+            <GitCompareArrows size={14} />
+            Compare
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="bottom"
+          className="border border-zinc-700 bg-zinc-900 text-zinc-200"
+        >
+          Compare execution runs side by side
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }
@@ -308,5 +342,35 @@ function BackendStatusTooltip({
       )}
       <div className="text-xs text-zinc-500">Click to refresh</div>
     </div>
+  )
+}
+
+/**
+ * Batch test toggle button.
+ */
+function BatchButton() {
+  const batchTestPanelOpen = useUIStore((s) => s.batchTestPanelOpen)
+  const toggleBatchTestPanel = useUIStore((s) => s.toggleBatchTestPanel)
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={toggleBatchTestPanel}
+          className={`h-8 gap-1.5 text-xs ${batchTestPanelOpen ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-400'}`}
+        >
+          <FlaskConical size={14} />
+          Batch
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="bottom"
+        className="border border-zinc-700 bg-zinc-900 text-zinc-200"
+      >
+        Batch test multiple queries
+      </TooltipContent>
+    </Tooltip>
   )
 }

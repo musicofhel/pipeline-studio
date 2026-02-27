@@ -27,6 +27,7 @@ export function ConfigPanel() {
   })
 
   const updateNodeConfig = usePipelineStore((s) => s.updateNodeConfig)
+  const updateNodeNotes = usePipelineStore((s) => s.updateNodeNotes)
   const removeNode = usePipelineStore((s) => s.removeNode)
   const duplicateNode = usePipelineStore((s) => s.duplicateNode)
 
@@ -94,6 +95,21 @@ export function ConfigPanel() {
               onChange={(val) => updateNodeConfig(selectedNodeId, { [field.key]: val })}
             />
           ))}
+
+          {/* Node notes / annotations */}
+          <Separator className="bg-zinc-700" />
+          <div>
+            <Label className="text-xs text-zinc-400">Notes</Label>
+            <textarea
+              value={node.data.notes ?? ''}
+              onChange={(e) => updateNodeNotes(selectedNodeId, e.target.value)}
+              placeholder="Add notes or annotations..."
+              className="mt-1 h-20 w-full resize-y rounded-md border border-zinc-700 bg-zinc-800 p-2 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-600 focus:outline-none"
+            />
+            <p className="mt-0.5 text-[10px] text-zinc-500">
+              Notes are saved with the pipeline and visible only here.
+            </p>
+          </div>
         </div>
       </ScrollArea>
 

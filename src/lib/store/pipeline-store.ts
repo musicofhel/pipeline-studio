@@ -52,6 +52,7 @@ interface PipelineState {
 
   // Node config
   updateNodeConfig: (nodeId: string, config: Record<string, unknown>) => void
+  updateNodeNotes: (nodeId: string, notes: string) => void
 
   // Execution
   setNodeStatus: (nodeId: string, status: NodeStatus, data?: Partial<import('@/types/nodes').NodeExecutionData>) => void
@@ -124,6 +125,14 @@ export const usePipelineStore = create<PipelineState>()(
         set({
           nodes: get().nodes.map((n) =>
             n.id === nodeId ? { ...n, data: { ...n.data, config: { ...n.data.config, ...config } } } : n
+          ),
+        })
+      },
+
+      updateNodeNotes: (nodeId, notes) => {
+        set({
+          nodes: get().nodes.map((n) =>
+            n.id === nodeId ? { ...n, data: { ...n.data, notes } } : n
           ),
         })
       },

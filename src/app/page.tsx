@@ -7,6 +7,8 @@ import { CanvasControls } from '@/components/canvas/CanvasControls'
 import { NodePalette } from '@/components/sidebar/NodePalette'
 import { ConfigPanel } from '@/components/panels/ConfigPanel'
 import { ExecutionPanel } from '@/components/panels/ExecutionPanel'
+import { ComparisonPanel } from '@/components/panels/ComparisonPanel'
+import { BatchTestPanel } from '@/components/panels/BatchTestPanel'
 import { usePipelineStore, type PipelineNode } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
 import { loadPipelineFromStorage, savePipelineToStorage } from '@/lib/engine/serializer'
@@ -24,6 +26,8 @@ export default function Home() {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const executionPanelOpen = useUIStore((s) => s.executionPanelOpen)
   const toggleExecutionPanel = useUIStore((s) => s.toggleExecutionPanel)
+  const comparisonPanelOpen = useUIStore((s) => s.comparisonPanelOpen)
+  const batchTestPanelOpen = useUIStore((s) => s.batchTestPanelOpen)
 
   // Load pipeline on mount
   useEffect(() => {
@@ -185,6 +189,18 @@ export default function Home() {
             {executionPanelOpen && (
               <div className="h-64 border-t border-zinc-700 bg-zinc-900">
                 <ExecutionPanel />
+              </div>
+            )}
+
+            {comparisonPanelOpen && (
+              <div className="h-64 border-t border-zinc-700 bg-zinc-900">
+                <ComparisonPanel />
+              </div>
+            )}
+
+            {batchTestPanelOpen && (
+              <div className="h-72 border-t border-zinc-700 bg-zinc-900">
+                <BatchTestPanel />
               </div>
             )}
           </div>

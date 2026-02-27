@@ -77,6 +77,7 @@ export interface PipelineNodeData {
   config: Record<string, unknown>
   execution?: NodeExecutionData
   label?: string
+  notes?: string
 }
 
 export interface PipelineEdgeData {

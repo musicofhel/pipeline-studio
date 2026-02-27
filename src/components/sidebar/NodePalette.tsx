@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { useState, useCallback, useMemo } from 'react'
+import { ChevronDown, ChevronRight, Search, X } from 'lucide-react'
 import {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
   Database, Copy, ArrowUpDown, Minimize2, Route, Sparkles,
@@ -10,6 +10,7 @@ import {
 import { NODE_REGISTRY, NODE_CATEGORIES } from '@/lib/nodes/registry'
 import { NodeCategory, NodeDefinition } from '@/types/nodes'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Input } from '@/components/ui/input'
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
@@ -34,24 +35,81 @@ const CATEGORY_ORDER: NodeCategory[] = [
 export function NodePalette() {
   const grouped = groupByCategory()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState('')
 
   const toggleCategory = useCallback((cat: string) => {
     setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }))
   }, [])
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('')
+  }, [])
+
+  // Filter nodes by search query, matching against name, description, and category label
+  const filteredGrouped = useMemo(() => {
+    if (!searchQuery.trim()) return null // null means "no filter active"
+    const query = searchQuery.toLowerCase().trim()
+    const result: Partial<Record<NodeCategory, NodeDefinition[]>> = {}
+    for (const cat of CATEGORY_ORDER) {
+      const catDef = NODE_CATEGORIES[cat]
+      const nodes = grouped[cat]
+      if (!nodes?.length) continue
+      const categoryMatches = catDef.label.toLowerCase().includes(query)
+      const matchingNodes = nodes.filter(
+        (def) =>
+          categoryMatches ||
+          def.label.toLowerCase().includes(query) ||
+          def.description.toLowerCase().includes(query) ||
+          def.type.toLowerCase().includes(query)
+      )
+      if (matchingNodes.length > 0) {
+        result[cat] = matchingNodes
+      }
+    }
+    return result
+  }, [searchQuery, grouped])
+
+  const isSearchActive = searchQuery.trim().length > 0
 
   return (
     <div className="flex h-full w-56 flex-col border-r border-zinc-700 bg-zinc-900">
       <div className="border-b border-zinc-700 px-3 py-2">
         <h2 className="text-sm font-semibold text-zinc-200">Node Palette</h2>
       </div>
+
+      {/* Search input */}
+      <div className="border-b border-zinc-700 px-2 py-2">
+        <div className="relative">
+          <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search nodes..."
+            className="h-7 border-zinc-700 bg-zinc-800 pl-7 pr-7 text-xs text-zinc-100 placeholder:text-zinc-500"
+          />
+          {isSearchActive && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-500 hover:text-zinc-300"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
       <ScrollArea className="flex-1">
         <div className="p-2">
           {CATEGORY_ORDER.map((cat) => {
             const catDef = NODE_CATEGORIES[cat]
-            const nodes = grouped[cat]
+            // If search active, use filtered set; otherwise use full set
+            const nodes = isSearchActive
+              ? (filteredGrouped?.[cat] ?? null)
+              : (grouped[cat] ?? null)
             if (!nodes?.length) return null
-            const isCollapsed = collapsed[cat]
 
+            // When searching, force categories open; otherwise respect collapsed state
+            const isCollapsed = isSearchActive ? false : collapsed[cat]
             const CatIcon = ICON_MAP[catDef.icon]
 
             return (
@@ -68,20 +126,25 @@ export function NodePalette() {
                 {!isCollapsed && (
                   <div className="ml-2 space-y-0.5">
                     {nodes.map((def) => (
-                      <PaletteNode key={def.type} def={def} />
+                      <PaletteNode key={def.type} def={def} highlight={isSearchActive ? searchQuery : undefined} />
                     ))}
                   </div>
                 )}
               </div>
             )
           })}
+          {isSearchActive && filteredGrouped && Object.keys(filteredGrouped).length === 0 && (
+            <div className="py-4 text-center text-xs text-zinc-500">
+              No nodes match &quot;{searchQuery}&quot;
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>
   )
 }
 
-function PaletteNode({ def }: { def: NodeDefinition }) {
+function PaletteNode({ def, highlight }: { def: NodeDefinition; highlight?: string }) {
   const IconComp = ICON_MAP[def.icon]
 
   const handleDragStart = useCallback(
@@ -100,10 +163,30 @@ function PaletteNode({ def }: { def: NodeDefinition }) {
       title={def.description}
     >
       {IconComp && <IconComp size={12} style={{ color: def.color }} />}
-      <span className="truncate">{def.label}</span>
+      <span className="truncate">
+        {highlight ? <HighlightText text={def.label} query={highlight} /> : def.label}
+      </span>
       {def.requiresApiKey && (
         <span className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-500" title={`Requires ${def.requiresApiKey}`} />
       )}
     </div>
+  )
+}
+
+/** Highlights matching portions of text with a yellow background. */
+function HighlightText({ text, query }: { text: string; query: string }) {
+  if (!query.trim()) return <>{text}</>
+  const lowerText = text.toLowerCase()
+  const lowerQuery = query.toLowerCase().trim()
+  const index = lowerText.indexOf(lowerQuery)
+  if (index === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, index)}
+      <span className="rounded bg-yellow-500/30 text-yellow-200">
+        {text.slice(index, index + lowerQuery.length)}
+      </span>
+      {text.slice(index + lowerQuery.length)}
+    </>
   )
 }

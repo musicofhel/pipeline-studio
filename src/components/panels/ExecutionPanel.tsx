@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Clock, DollarSign, GitBranch, CheckCircle, XCircle, Timer } from 'lucide-react'
+import { Clock, DollarSign, GitBranch, CheckCircle, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { usePipelineStore } from '@/lib/store/pipeline-store'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
 import { NodeDataInspector } from './NodeDataInspector'
+import { TraceTimeline } from './TraceTimeline'
 
 export function ExecutionPanel() {
   const executionStatus = usePipelineStore((s) => s.executionStatus)
@@ -196,11 +197,7 @@ export function ExecutionPanel() {
         </TabsContent>
 
         <TabsContent value="timeline" className="min-h-0 flex-1">
-          <div className="flex h-full flex-col items-center justify-center gap-2 text-zinc-500">
-            <Timer size={24} className="text-zinc-600" />
-            <p className="text-sm">Timeline View</p>
-            <p className="text-xs text-zinc-600">Coming soon</p>
-          </div>
+          <TraceTimeline onSwitchToInspector={() => setActiveTab('inspector')} />
         </TabsContent>
       </Tabs>
 

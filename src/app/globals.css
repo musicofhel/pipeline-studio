@@ -180,3 +180,13 @@
 .edge-tooltip-badge {
   z-index: 1000;
 }
+
+/* Trace timeline: pulsing bar for running nodes */
+@keyframes trace-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}

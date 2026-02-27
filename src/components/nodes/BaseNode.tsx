@@ -13,6 +13,7 @@ import { HANDLE_COLORS } from '@/lib/nodes/handle-colors'
 import { HandleDefinition, HandleType, NodeStatus, PipelineNodeData } from '@/types/nodes'
 import { usePipelineStore } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
+import { NodeMetricsBadge } from '@/components/nodes/NodeMetricsBadge'
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
@@ -246,16 +247,6 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
       {(execution?.latencyMs !== undefined || execution?.error || execution?.skipReason) && (
         <div className="border-t border-zinc-700 px-3 py-1.5">
           <div className="flex items-center justify-between text-[10px]">
-            {execution.latencyMs !== undefined && (
-              <span className="text-zinc-400">
-                {execution.latencyMs < 1000
-                  ? `${execution.latencyMs.toFixed(0)}ms`
-                  : `${(execution.latencyMs / 1000).toFixed(2)}s`}
-              </span>
-            )}
-            {execution.cost !== undefined && execution.cost > 0 && (
-              <span className="text-zinc-400">${execution.cost.toFixed(4)}</span>
-            )}
             {execution.error && (
               <span className="truncate text-red-400" title={execution.error}>
                 {execution.error}
@@ -267,6 +258,8 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
               </span>
             )}
           </div>
+          {/* Metric badges — latency + cost */}
+          <NodeMetricsBadge execution={execution} />
         </div>
       )}
 

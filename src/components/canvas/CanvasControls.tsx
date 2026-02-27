@@ -22,6 +22,7 @@ import { getLayoutedElements } from '@/lib/layout/elk-layout'
 import { exportPipelineToJSON, importPipelineFromJSON } from '@/lib/engine/serializer'
 import { pipelineExecutor } from '@/lib/engine/executor'
 import { useBackendStatus } from '@/lib/hooks/use-backend-status'
+import { HealthDashboard } from '@/components/panels/HealthDashboard'
 
 export function CanvasControls() {
   const nodes = usePipelineStore((s) => s.nodes)
@@ -191,23 +192,26 @@ export function CanvasControls() {
         )}
       </div>
 
-      {/* Backend status indicator */}
+      {/* Backend status indicator — opens health dashboard on click */}
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={backendStatus.refresh}
-            className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-zinc-800"
-          >
-            <Circle
-              size={8}
-              className={
-                backendStatus.connected
-                  ? 'fill-green-500 text-green-500'
-                  : 'fill-red-500 text-red-500'
-              }
-            />
-          </button>
+          <span>
+            <HealthDashboard>
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-zinc-800"
+              >
+                <Circle
+                  size={8}
+                  className={
+                    backendStatus.connected
+                      ? 'fill-green-500 text-green-500'
+                      : 'fill-red-500 text-red-500'
+                  }
+                />
+              </button>
+            </HealthDashboard>
+          </span>
         </TooltipTrigger>
         <TooltipContent
           side="bottom"

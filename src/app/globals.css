@@ -181,6 +181,11 @@
   z-index: 1000;
 }
 
+/* Z-index layering for edge labels above nodes */
+.react-flow__edgelabel-renderer {
+  z-index: 60 !important;
+}
+
 /* Trace timeline: pulsing bar for running nodes */
 @keyframes trace-pulse {
   0%, 100% {

@@ -6,14 +6,16 @@ import {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
   Database, Copy, ArrowUpDown, Minimize2, Route, Sparkles,
   CheckCircle, FileCheck, Activity, BarChart3, Send, MessageSquare,
-  Loader2, Check, X, AlertTriangle, Ban, EyeOff,
+  Loader2, Check, X, AlertTriangle, Ban, EyeOff, KeyRound,
 } from 'lucide-react'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
 import { HANDLE_COLORS } from '@/lib/nodes/handle-colors'
+import { SERVICE_COLORS, SERVICE_LABELS } from '@/lib/nodes/service-colors'
 import { HandleDefinition, HandleType, NodeStatus, PipelineNodeData } from '@/types/nodes'
 import { usePipelineStore } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
-import { NodeMetricsBadge } from '@/components/nodes/NodeMetricsBadge'
+import { NodeConfigSummary } from '@/components/nodes/NodeConfigSummary'
+import { NodeMetricsSection } from '@/components/nodes/NodeMetricsSection'
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
@@ -99,11 +101,14 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
     return { isConnecting: true, fromHandleType, fromNodeId, fromDirection }
   }, [connection.inProgress, connection.fromHandle, connection.fromNode])
 
-  // Get execution data from the store
-  const execution = usePipelineStore((s) => {
+  // Get node data (config + execution) from the store
+  const nodeData = usePipelineStore((s) => {
     const node = s.nodes.find((n) => n.id === id)
-    return node?.data?.execution
+    return node?.data
   })
+
+  const execution = nodeData?.execution
+  const config = nodeData?.config ?? {}
 
   const status: NodeStatus = execution?.status ?? 'idle'
   const statusCfg = STATUS_CONFIG[status]
@@ -126,6 +131,9 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
   const topHandles = [...def.inputs.filter((h) => h.position === 'top'), ...def.outputs.filter((h) => h.position === 'top')]
   const bottomHandles = [...def.inputs.filter((h) => h.position === 'bottom'), ...def.outputs.filter((h) => h.position === 'bottom')]
 
+  const serviceColor = SERVICE_COLORS[def.service] ?? '#94a3b8'
+  const serviceLabel = SERVICE_LABELS[def.service] ?? def.service
+
   return (
     <div
       className={`
@@ -135,7 +143,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
         ${isSkippedOrDisabled ? 'opacity-50' : ''}
         ${status === 'running' ? 'shadow-yellow-400/20' : ''}
       `}
-      style={{ minWidth: 220 }}
+      style={{ width: 280 }}
       onClick={handleClick}
     >
       {/* Header */}
@@ -143,17 +151,55 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
         className="flex items-center gap-2 rounded-t-md px-3 py-2"
         style={{ backgroundColor: def.color + '20' }}
       >
+        {/* Icon box */}
         {IconComponent && (
-          <IconComponent size={16} className="shrink-0" style={{ color: def.color }} />
+          <div
+            className="flex shrink-0 items-center justify-center rounded-md"
+            style={{
+              width: 24,
+              height: 24,
+              backgroundColor: def.color + '33',
+            }}
+          >
+            <IconComponent size={14} style={{ color: def.color }} />
+          </div>
         )}
         <span className="truncate text-sm font-medium text-zinc-100">
           {def.label}
         </span>
-        {statusCfg.icon && <span className="ml-auto shrink-0">{statusCfg.icon}</span>}
+        {/* Service badge pill */}
+        {def.service !== 'local' && (
+          <span
+            className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+            style={{
+              backgroundColor: serviceColor + '22',
+              color: serviceColor,
+            }}
+          >
+            {def.requiresApiKey && <KeyRound size={8} className="shrink-0" />}
+            {serviceLabel}
+          </span>
+        )}
+        {statusCfg.icon && (
+          <span className={`${def.service === 'local' ? 'ml-auto' : ''} shrink-0`}>
+            {statusCfg.icon}
+          </span>
+        )}
       </div>
 
+      {/* Description */}
+      <div className="border-t border-zinc-800 px-3 py-1.5">
+        <p className="text-[10px] leading-tight text-zinc-500">{def.description}</p>
+      </div>
+
+      {/* Config Summary */}
+      <NodeConfigSummary config={config} schema={def.configSchema} />
+
+      {/* Metrics Section */}
+      <NodeMetricsSection def={def} execution={execution} />
+
       {/* Handles section */}
-      <div className="flex justify-between gap-4 px-3 py-2">
+      <div className="flex justify-between gap-4 border-t border-zinc-800 px-3 py-2">
         {/* Left inputs */}
         <div className="flex flex-col gap-1.5">
           {leftHandles.map((h) => {
@@ -164,7 +210,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                   type="target"
                   position={Position.Left}
                   id={h.id}
-                  className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
                   style={{
                     backgroundColor: HANDLE_COLORS[h.type],
                     top: 'auto',
@@ -173,7 +219,11 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                     left: -12,
                   }}
                 />
-                <span className="text-[10px] text-zinc-400">{h.label}</span>
+                <span
+                  className="inline-block h-1 w-1 shrink-0 rounded-full"
+                  style={{ backgroundColor: HANDLE_COLORS[h.type] }}
+                />
+                <span className="text-[11px] text-zinc-400">{h.label}</span>
               </div>
             )
           })}
@@ -185,12 +235,16 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
             const connClass = getHandleConnectionClass(h, 'output', id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
             return (
               <div key={h.id} className="relative flex items-center gap-1.5">
-                <span className="text-[10px] text-zinc-400">{h.label}</span>
+                <span className="text-[11px] text-zinc-400">{h.label}</span>
+                <span
+                  className="inline-block h-1 w-1 shrink-0 rounded-full"
+                  style={{ backgroundColor: HANDLE_COLORS[h.type] }}
+                />
                 <Handle
                   type="source"
                   position={Position.Right}
                   id={h.id}
-                  className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
                   style={{
                     backgroundColor: HANDLE_COLORS[h.type],
                     top: 'auto',
@@ -215,7 +269,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
             type={dir === 'input' ? 'target' : 'source'}
             position={Position.Top}
             id={h.id}
-            className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
             style={{
               backgroundColor: HANDLE_COLORS[h.type],
               left: `${((i + 1) / (topHandles.length + 1)) * 100}%`,
@@ -234,7 +288,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
             type={dir === 'input' ? 'target' : 'source'}
             position={Position.Bottom}
             id={h.id}
-            className={`!h-2.5 !w-2.5 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
             style={{
               backgroundColor: HANDLE_COLORS[h.type],
               left: `${((i + 1) / (bottomHandles.length + 1)) * 100}%`,
@@ -243,14 +297,17 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
         )
       })}
 
-      {/* Footer — execution stats */}
-      {(execution?.latencyMs !== undefined || execution?.error || execution?.skipReason) && (
+      {/* Footer — errors and skip reasons only */}
+      {(execution?.error || execution?.skipReason) && (
         <div className="border-t border-zinc-700 px-3 py-1.5">
-          <div className="flex items-center justify-between text-[10px]">
+          <div className="flex items-center gap-1 text-[10px]">
             {execution.error && (
-              <span className="truncate text-red-400" title={execution.error}>
-                {execution.error}
-              </span>
+              <>
+                <AlertTriangle size={10} className="shrink-0 text-red-400" />
+                <span className="truncate text-red-400" title={execution.error}>
+                  {execution.error}
+                </span>
+              </>
             )}
             {execution.skipReason && (
               <span className="truncate text-zinc-500" title={execution.skipReason}>
@@ -258,14 +315,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
               </span>
             )}
           </div>
-          {/* Metric badges — latency + cost */}
-          <NodeMetricsBadge execution={execution} />
         </div>
-      )}
-
-      {/* Service indicator */}
-      {def.requiresApiKey && (
-        <div className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500" title={`Requires ${def.requiresApiKey}`} />
       )}
     </div>
   )

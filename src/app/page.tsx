@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { ReactFlowProvider } from '@xyflow/react'
 import { PipelineCanvas } from '@/components/canvas/PipelineCanvas'
 import { CanvasControls } from '@/components/canvas/CanvasControls'
@@ -16,12 +16,32 @@ import { useUIStore } from '@/lib/store/ui-store'
 import { loadPipelineFromStorage, savePipelineToStorage } from '@/lib/engine/serializer'
 import { NODE_REGISTRY } from '@/lib/nodes/registry'
 import { getLayoutedElements } from '@/lib/layout/elk-layout'
-import { Keyboard, PanelBottom, PanelBottomClose, PanelLeft, PanelLeftClose } from 'lucide-react'
+import { GripHorizontal, Keyboard, PanelBottom, PanelBottomClose, PanelLeft, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function Home() {
   const [loaded, setLoaded] = useState(false)
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false)
+  const [bottomPanelHeight, setBottomPanelHeight] = useState(300)
+  const dragRef = useRef<{ startY: number; startHeight: number } | null>(null)
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragRef.current = { startY: e.clientY, startHeight: bottomPanelHeight }
+    const onMove = (ev: MouseEvent) => {
+      if (!dragRef.current) return
+      const delta = dragRef.current.startY - ev.clientY
+      const maxH = window.innerHeight * 0.8
+      setBottomPanelHeight(Math.max(120, Math.min(maxH, dragRef.current.startHeight + delta)))
+    }
+    const onUp = () => {
+      dragRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [bottomPanelHeight])
   const loadPipeline = usePipelineStore((s) => s.loadPipeline)
   const nodes = usePipelineStore((s) => s.nodes)
   const edges = usePipelineStore((s) => s.edges)
@@ -209,21 +229,23 @@ export default function Home() {
                 <PipelineCanvas />
               </div>
 
-              {executionPanelOpen && (
-                <div className="h-64 border-t border-zinc-700 bg-zinc-900">
-                  <ExecutionPanel />
-                </div>
-              )}
-
-              {comparisonPanelOpen && (
-                <div className="h-64 border-t border-zinc-700 bg-zinc-900">
-                  <ComparisonPanel />
-                </div>
-              )}
-
-              {batchTestPanelOpen && (
-                <div className="h-72 border-t border-zinc-700 bg-zinc-900">
-                  <BatchTestPanel />
+              {(executionPanelOpen || comparisonPanelOpen || batchTestPanelOpen) && (
+                <div
+                  className="flex flex-col border-t border-zinc-700 bg-zinc-900"
+                  style={{ height: bottomPanelHeight }}
+                >
+                  {/* Drag handle */}
+                  <div
+                    onMouseDown={onResizeStart}
+                    className="group flex h-2 shrink-0 cursor-row-resize items-center justify-center hover:bg-zinc-700/50"
+                  >
+                    <GripHorizontal size={14} className="text-zinc-600 group-hover:text-zinc-400" />
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    {executionPanelOpen && <ExecutionPanel />}
+                    {comparisonPanelOpen && !executionPanelOpen && <ComparisonPanel />}
+                    {batchTestPanelOpen && !executionPanelOpen && !comparisonPanelOpen && <BatchTestPanel />}
+                  </div>
                 </div>
               )}
             </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { BaseEdge, type EdgeProps, getBezierPath, MarkerType } from '@xyflow/react'
+import { BaseEdge, type EdgeProps, getSmoothStepPath, MarkerType } from '@xyflow/react'
 
 export function QueryBusEdge({
   id,
@@ -13,13 +13,15 @@ export function QueryBusEdge({
   style = {},
   markerEnd,
 }: EdgeProps) {
-  const [edgePath] = getBezierPath({
+  const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 8,
+    offset: 30,
   })
 
   return (

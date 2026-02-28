@@ -5,7 +5,7 @@ import {
   BaseEdge,
   type EdgeProps,
   type Edge,
-  getBezierPath,
+  getSmoothStepPath,
 } from '@xyflow/react'
 import { PipelineEdgeData } from '@/types/nodes'
 import { getHandleType } from '@/lib/engine/validator'
@@ -45,13 +45,15 @@ export function AnimatedEdge({
     }
   }
 
-  const [edgePath] = getBezierPath({
+  const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 8,
+    offset: 30,
   })
 
   const isAnimated = data?.animated === true

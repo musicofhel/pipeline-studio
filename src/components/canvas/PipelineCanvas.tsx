@@ -13,7 +13,7 @@ import {
   type ConnectionLineComponentProps,
   BackgroundVariant,
   MarkerType,
-  getBezierPath,
+  getSmoothStepPath,
   type DefaultEdgeOptions,
   type IsValidConnection,
 } from '@xyflow/react'
@@ -113,13 +113,15 @@ function CustomConnectionLine({
     lineColor = '#ef4444' // red
   }
 
-  const [path] = getBezierPath({
+  const [path] = getSmoothStepPath({
     sourceX: fromX,
     sourceY: fromY,
     sourcePosition: fromPosition,
     targetX: toX,
     targetY: toY,
     targetPosition: toPosition,
+    borderRadius: 8,
+    offset: 30,
   })
 
   return (
@@ -228,7 +230,7 @@ export function PipelineCanvas() {
   )
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative h-full w-full [&_.react-flow__edges]:!z-0 [&_.react-flow__node]:!z-[21] [&_.react-flow__handle]:!z-[30] [&_.react-flow__edgelabel-renderer]:!z-[60]">
       <ExecutionOverlay />
       <ReactFlow
         nodes={nodes}
@@ -246,6 +248,7 @@ export function PipelineCanvas() {
         edgeTypes={edgeTypes}
         defaultEdgeOptions={defaultEdgeOptions}
         connectionLineComponent={CustomConnectionLine}
+        elevateEdgesOnSelect
         fitView
         fitViewOptions={{ padding: 0.1, maxZoom: 1 }}
         colorMode="dark"

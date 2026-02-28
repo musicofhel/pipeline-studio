@@ -6,8 +6,9 @@ import {
   EdgeLabelRenderer,
   type EdgeProps,
   type Edge,
-  getBezierPath,
+  getSmoothStepPath,
 } from '@xyflow/react'
+import { X } from 'lucide-react'
 import { PipelineEdgeData } from '@/types/nodes'
 import { getHandleType } from '@/lib/engine/validator'
 import { HANDLE_COLORS } from '@/lib/nodes/handle-colors'
@@ -19,6 +20,9 @@ type TooltipEdgeType = Edge<PipelineEdgeData>
  * Custom edge that extends AnimatedEdge behavior with a hover tooltip
  * showing the data type (HandleType) being transferred along the edge.
  * Uses React Flow's EdgeLabelRenderer for positioning.
+ * Renders smooth step (right-angle with rounded corners) paths.
+ * Shows route condition labels for conditional edges.
+ * Shows a delete button when the edge is selected.
  */
 export function TooltipEdge({
   id,
@@ -33,6 +37,7 @@ export function TooltipEdge({
   source,
   sourceHandleId,
   data,
+  selected,
 }: EdgeProps<TooltipEdgeType>) {
   const [hovered, setHovered] = useState(false)
   const filterId = useId()
@@ -49,13 +54,15 @@ export function TooltipEdge({
     }
   }
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 8,
+    offset: 30,
   })
 
   const isAnimated = data?.animated === true
@@ -124,6 +131,46 @@ export function TooltipEdge({
             animation: 'edge-flow-dot 600ms ease-in-out forwards',
           }}
         />
+      )}
+
+      {/* Route condition label for conditional edges */}
+      {data?.condition?.route && (
+        <EdgeLabelRenderer>
+          <div
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
+              pointerEvents: 'all',
+              zIndex: 60,
+            }}
+          >
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-300 backdrop-blur-sm">
+              {data.condition.route}
+            </div>
+          </div>
+        </EdgeLabelRenderer>
+      )}
+
+      {/* Delete button when edge is selected */}
+      {selected && (
+        <EdgeLabelRenderer>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              const { edges, setEdges } = usePipelineStore.getState()
+              setEdges(edges.filter((edge) => edge.id !== id))
+            }}
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY - 18}px)`,
+              pointerEvents: 'all',
+              zIndex: 60,
+            }}
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-zinc-600 bg-zinc-800 text-zinc-400 transition-colors hover:border-red-500 hover:bg-red-500/20 hover:text-red-400"
+          >
+            <X size={10} />
+          </button>
+        </EdgeLabelRenderer>
       )}
 
       {/* Tooltip badge rendered in HTML overlay via EdgeLabelRenderer */}

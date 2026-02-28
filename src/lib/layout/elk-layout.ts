@@ -1,8 +1,8 @@
 import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js'
 import { type PipelineNode, type PipelineEdge } from '@/lib/store/pipeline-store'
 
-const DEFAULT_NODE_WIDTH = 260
-const DEFAULT_NODE_HEIGHT = 120
+const DEFAULT_NODE_WIDTH = 280
+const DEFAULT_NODE_HEIGHT = 220
 
 interface LayoutOptions {
   direction?: 'RIGHT' | 'DOWN'

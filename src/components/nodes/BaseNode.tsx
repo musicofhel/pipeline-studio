@@ -16,6 +16,7 @@ import { usePipelineStore } from '@/lib/store/pipeline-store'
 import { useUIStore } from '@/lib/store/ui-store'
 import { NodeConfigSummary } from '@/components/nodes/NodeConfigSummary'
 import { NodeMetricsSection } from '@/components/nodes/NodeMetricsSection'
+import { NodeIOPreview } from '@/components/nodes/NodeIOPreview'
 
 const ICON_MAP: Record<string, React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>> = {
   ShieldAlert, Eye, ShieldCheck, ShieldBan, GitBranch, Expand,
@@ -146,6 +147,25 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
       style={{ width: 280 }}
       onClick={handleClick}
     >
+      {/* Execution ring pulse overlays */}
+      {status === 'running' && (
+        <div
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{
+            '--ring-color': def.color + '66',
+            animation: 'execution-ring-pulse 1.5s ease-in-out infinite',
+          } as React.CSSProperties}
+        />
+      )}
+      {status === 'success' && (
+        <div
+          className="absolute inset-0 rounded-lg pointer-events-none"
+          style={{
+            animation: 'success-ring-fade 2s ease-out forwards',
+          }}
+        />
+      )}
+
       {/* Header */}
       <div
         className="flex items-center gap-2 rounded-t-md px-3 py-2"
@@ -210,7 +230,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                   type="target"
                   position={Position.Left}
                   id={h.id}
-                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 transition-all duration-150 hover:!h-[14px] hover:!w-[14px] hover:!border-zinc-600 ${connClass}`}
                   style={{
                     backgroundColor: HANDLE_COLORS[h.type],
                     top: 'auto',
@@ -244,7 +264,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                   type="source"
                   position={Position.Right}
                   id={h.id}
-                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+                  className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 transition-all duration-150 hover:!h-[14px] hover:!w-[14px] hover:!border-zinc-600 ${connClass}`}
                   style={{
                     backgroundColor: HANDLE_COLORS[h.type],
                     top: 'auto',
@@ -269,7 +289,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
             type={dir === 'input' ? 'target' : 'source'}
             position={Position.Top}
             id={h.id}
-            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 transition-all duration-150 hover:!h-[14px] hover:!w-[14px] hover:!border-zinc-600 ${connClass}`}
             style={{
               backgroundColor: HANDLE_COLORS[h.type],
               left: `${((i + 1) / (topHandles.length + 1)) * 100}%`,
@@ -288,7 +308,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
             type={dir === 'input' ? 'target' : 'source'}
             position={Position.Bottom}
             id={h.id}
-            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 ${connClass}`}
+            className={`!h-3 !w-3 !rounded-full !border-2 !border-zinc-800 transition-all duration-150 hover:!h-[14px] hover:!w-[14px] hover:!border-zinc-600 ${connClass}`}
             style={{
               backgroundColor: HANDLE_COLORS[h.type],
               left: `${((i + 1) / (bottomHandles.length + 1)) * 100}%`,
@@ -296,6 +316,9 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
           />
         )
       })}
+
+      {/* I/O data preview — collapsible input/output after execution */}
+      <NodeIOPreview execution={execution} />
 
       {/* Footer — errors and skip reasons only */}
       {(execution?.error || execution?.skipReason) && (

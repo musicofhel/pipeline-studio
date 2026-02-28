@@ -181,11 +181,6 @@
   z-index: 1000;
 }
 
-/* Z-index layering for edge labels above nodes */
-.react-flow__edgelabel-renderer {
-  z-index: 60 !important;
-}
-
 /* Trace timeline: pulsing bar for running nodes */
 @keyframes trace-pulse {
   0%, 100% {
@@ -194,4 +189,29 @@
   50% {
     opacity: 1;
   }
+}
+
+/* Execution ring pulse — node glows during execution */
+@keyframes execution-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1.5px var(--ring-color, rgba(234, 179, 8, 0.4));
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--ring-color, rgba(234, 179, 8, 0.15));
+  }
+}
+
+/* Success ring — brief green glow then fade */
+@keyframes success-ring-fade {
+  0% {
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 1.5px rgba(34, 197, 94, 0);
+  }
+}
+
+/* Node hover brightness lift */
+.react-flow__node:hover {
+  filter: brightness(1.03);
 }

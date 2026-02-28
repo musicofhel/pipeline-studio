@@ -9,6 +9,7 @@ import {
 } from './trace-mapper'
 import type { PipelineTrace } from '@/types/pipeline'
 import type { ExecutionMode } from '@/lib/store/ui-store'
+import { generateMockInput, generateMockOutput } from './mock-io-data'
 
 /** SSE event shape from the /api/pipeline/stream endpoint. */
 interface StreamEvent {
@@ -358,6 +359,8 @@ export class PipelineExecutor {
         usePipelineStore.getState().setNodeStatus(nodeId, 'success', {
           latencyMs: nodeLatency,
           cost: nodeCost,
+          inputData: node?.type ? generateMockInput(node.type) : undefined,
+          outputData: node?.type ? generateMockOutput(node.type) : undefined,
         })
 
         totalCost += nodeCost

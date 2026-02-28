@@ -225,7 +225,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
           {leftHandles.map((h) => {
             const connClass = getHandleConnectionClass(h, 'input', id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
             return (
-              <div key={h.id} className="relative flex items-center gap-1.5">
+              <div key={h.id} className="group/handle relative flex items-center gap-1.5">
                 <Handle
                   type="target"
                   position={Position.Left}
@@ -239,6 +239,13 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                     left: -12,
                   }}
                 />
+                {/* Handle type tooltip */}
+                <span
+                  className="pointer-events-none absolute -left-2 -translate-x-full rounded px-1 py-0.5 text-[8px] font-medium opacity-0 transition-opacity group-hover/handle:opacity-100 whitespace-nowrap"
+                  style={{ backgroundColor: HANDLE_COLORS[h.type] + '30', color: HANDLE_COLORS[h.type] }}
+                >
+                  {h.type}
+                </span>
                 <span
                   className="inline-block h-1 w-1 shrink-0 rounded-full"
                   style={{ backgroundColor: HANDLE_COLORS[h.type] }}
@@ -254,7 +261,7 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
           {rightHandles.map((h) => {
             const connClass = getHandleConnectionClass(h, 'output', id, connectionInfo.fromNodeId, connectionInfo.fromHandleType, connectionInfo.fromDirection, connectionInfo.isConnecting)
             return (
-              <div key={h.id} className="relative flex items-center gap-1.5">
+              <div key={h.id} className="group/handle relative flex items-center gap-1.5">
                 <span className="text-[11px] text-zinc-400">{h.label}</span>
                 <span
                   className="inline-block h-1 w-1 shrink-0 rounded-full"
@@ -273,6 +280,13 @@ function BaseNodeComponent({ id, type, selected }: NodeProps) {
                     right: -12,
                   }}
                 />
+                {/* Handle type tooltip */}
+                <span
+                  className="pointer-events-none absolute -right-2 translate-x-full rounded px-1 py-0.5 text-[8px] font-medium opacity-0 transition-opacity group-hover/handle:opacity-100 whitespace-nowrap"
+                  style={{ backgroundColor: HANDLE_COLORS[h.type] + '30', color: HANDLE_COLORS[h.type] }}
+                >
+                  {h.type}
+                </span>
               </div>
             )
           })}

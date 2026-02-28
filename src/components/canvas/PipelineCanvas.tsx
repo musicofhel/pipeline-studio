@@ -249,6 +249,7 @@ export function PipelineCanvas() {
         defaultEdgeOptions={defaultEdgeOptions}
         connectionLineComponent={CustomConnectionLine}
         elevateEdgesOnSelect
+        edgesReconnectable
         fitView
         fitViewOptions={{ padding: 0.1, maxZoom: 1 }}
         colorMode="dark"

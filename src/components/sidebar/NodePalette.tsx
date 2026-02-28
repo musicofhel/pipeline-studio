@@ -144,8 +144,16 @@ export function NodePalette() {
   )
 }
 
+function formatEstimate(def: NodeDefinition): string {
+  const parts: string[] = []
+  if (def.estimatedLatencyMs) parts.push(`~${def.estimatedLatencyMs}ms`)
+  if (def.estimatedCostPerCall) parts.push(`~$${def.estimatedCostPerCall}`)
+  return parts.length > 0 ? parts.join(' | ') : ''
+}
+
 function PaletteNode({ def, highlight }: { def: NodeDefinition; highlight?: string }) {
   const IconComp = ICON_MAP[def.icon]
+  const estimate = formatEstimate(def)
 
   const handleDragStart = useCallback(
     (event: React.DragEvent) => {
@@ -160,14 +168,19 @@ function PaletteNode({ def, highlight }: { def: NodeDefinition; highlight?: stri
       draggable
       onDragStart={handleDragStart}
       className="flex cursor-grab items-center gap-2 rounded px-2 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800 active:cursor-grabbing"
-      title={def.description}
+      title={`${def.description}${estimate ? `\n${estimate}` : ''}`}
     >
       {IconComp && <IconComp size={12} style={{ color: def.color }} />}
-      <span className="truncate">
-        {highlight ? <HighlightText text={def.label} query={highlight} /> : def.label}
-      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="truncate">
+          {highlight ? <HighlightText text={def.label} query={highlight} /> : def.label}
+        </span>
+        {estimate && (
+          <span className="truncate text-[9px] text-zinc-500">{estimate}</span>
+        )}
+      </div>
       {def.requiresApiKey && (
-        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-500" title={`Requires ${def.requiresApiKey}`} />
+        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" title={`Requires ${def.requiresApiKey}`} />
       )}
     </div>
   )

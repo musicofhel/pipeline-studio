@@ -8,17 +8,40 @@ interface NodeConfigSummaryProps {
   schema: ConfigField[]
 }
 
-function formatConfigValue(val: unknown, field: ConfigField): string {
+function formatConfigValue(val: unknown, field: ConfigField): React.ReactNode {
   if (val === undefined || val === null) return ''
   switch (field.type) {
     case 'boolean':
-      return val ? 'on' : 'off'
-    case 'slider':
-      return Number(val).toFixed(2)
+      return (
+        <span
+          className="inline-block h-2 w-2 rounded-full"
+          style={{ backgroundColor: val ? '#22c55e' : '#ef4444' }}
+          title={val ? 'Enabled' : 'Disabled'}
+        />
+      )
+    case 'slider': {
+      const num = Number(val)
+      const max = field.max ?? 1
+      const min = field.min ?? 0
+      const pct = Math.min(100, Math.max(0, ((num - min) / (max - min)) * 100))
+      return (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="inline-block h-[6px] w-8 overflow-hidden rounded-full bg-zinc-800">
+            <span className="block h-full rounded-full bg-zinc-500" style={{ width: `${pct}%` }} />
+          </span>
+          <span>{num.toFixed(2)}</span>
+        </span>
+      )
+    }
     case 'number':
       return String(val)
-    case 'text':
     case 'select': {
+      // Show selected option label if available
+      const option = field.options?.find((o) => o.value === val)
+      const display = option?.label ?? String(val)
+      return display.length > 24 ? display.slice(0, 24) + '\u2026' : display
+    }
+    case 'text': {
       const str = String(val)
       return str.length > 24 ? str.slice(0, 24) + '\u2026' : str
     }
@@ -30,8 +53,8 @@ function formatConfigValue(val: unknown, field: ConfigField): string {
 function getConfigSummary(
   config: Record<string, unknown>,
   schema: ConfigField[],
-): Array<{ label: string; value: string }> {
-  const rows: Array<{ label: string; value: string }> = []
+): Array<{ label: string; value: React.ReactNode }> {
+  const rows: Array<{ label: string; value: React.ReactNode }> = []
 
   for (const field of schema) {
     if (rows.length >= 4) break
